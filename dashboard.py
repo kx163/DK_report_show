@@ -12,21 +12,39 @@ import plotly.colors
 
 # Data Section 1: Prepare the data of the first illustration: the typical samples
 samples_by_granularity = OrderedDict([
-    ("low level task", ["t_go_to_start_bay",
-                        "t_couple_trolley",
-                        "t_undock_trolley",
-                        "t_exit_start_bay",
-                        "t_go_to_end_bay",
-                        "sum_navigation_failures",
-                        "t_visual_align",
-                        "t_drop_trolley",
-                        "t_undock_robot"]),
-    ("medium level task", ["total_go_to_start_bay",
-                           "total_couple_trolley_and_exit_bay",
-                           "total_go_to_end_bay",
-                           "total_drop_trolley_in_bay"]),
-    ("total spent", ["total_spent"])
+    ("Finest decomposition of task", ["t_go_to_start_bay",
+                                      "t_couple_trolley",
+                                      "t_undock_trolley",
+                                      "t_exit_start_bay",
+                                      "t_go_to_end_bay",
+                                      "sum_navigation_failures",
+                                      "t_visual_align",
+                                      "t_drop_trolley",
+                                      "t_undock_robot"]),
+    ("Coarse decomposition of task", ["total_go_to_start_bay",
+                                      "total_couple_trolley_and_exit_bay",
+                                      "total_go_to_end_bay",
+                                      "total_drop_trolley_in_bay"]),
+    ("No decomposition of task", ["total_spent"])
 ])
+
+
+title_translation = {
+    "t_go_to_start_bay": "Go to the start station",
+    "t_couple_trolley": "Couple with the trolley",
+    "t_undock_trolley": "Undock the coupled trolley",
+    "t_exit_start_bay": "Exit the start station",
+    "t_go_to_end_bay": "Go to the destination station",
+    "sum_navigation_failures": "Total navigation failure",
+    "t_visual_align": "Visual alignment",
+    "t_drop_trolley": "Drop the trolley",
+    "t_undock_robot": "Undock the robot",
+    "total_go_to_start_bay": "Go to the start station",
+    "total_couple_trolley_and_exit_bay": "Couple with the trolley and exit the start station",
+    "total_go_to_end_bay": "Go to the destination station",
+    "total_drop_trolley_in_bay": "Drop the trolley in the destination station",
+    "total_spent": "Total time spent for the whole task"
+}
 
 
 def load_samples(sample_csv):
@@ -226,7 +244,7 @@ app.layout = html.Div([
                     ),
                     dcc.RadioItems(
                         id="traffic-choice",
-                        options=[{"label": i, "value": i} for i in model_choices.keys()],
+                        options=[{"label": "warehouse in %s period" % i, "value": i} for i in model_choices.keys()],
                         value=model_choices.keys()[0],
                         labelStyle=dict(textAlign="center"),
                         labelClassName="six columns",
@@ -245,7 +263,7 @@ app.layout = html.Div([
                     ),
                     dcc.RadioItems(
                         id="robot-choice",
-                        options=[{"label": i, "value": i} for i in robot_choices.keys()],
+                        options=[{"label": "our %s prototype" % i, "value": i} for i in robot_choices.keys()],
                         value=robot_choices.keys()[1],
                         labelStyle=dict(textAlign="center"),
                         labelClassName="six columns",
@@ -311,7 +329,7 @@ def generate_typical_samples_figure(granularity):
         trace = go.Bar(
             y=loaded_sample_names,
             x=x_values[i],
-            name=x_legends[i],
+            name=title_translation[x_legends[i]],
             orientation='h'
         )
         traces.append(trace)
@@ -319,8 +337,21 @@ def generate_typical_samples_figure(granularity):
         barmode='stack',
         title='fig.3 - Typical samples from DK trial',
         xaxis=dict(title='time in seconds', domain=[0, 140]),
-        yaxis=dict(title=y_title),
-        margin={'l': 180, 'r': 60, 't': 30, 'b': 30}
+        yaxis=dict(title='typical samples'),
+        margin={'l': 180, 'r': 60, 't': 30, 'b': 130},
+        annotations=[
+            dict(
+                x=0.5,
+                y=-0.3,
+                showarrow=False,
+                xref='paper',
+                yref='paper',
+                text="model sample means the statistic model of the trial, "
+                     "100% means the longest distance sample in the trial, "
+                     "0% means the shortest distance sample in the trial, "
+                     "while other percentages mean similarly."
+            )
+        ]
     )
     return go.Figure(data=traces, layout=layout)
 
@@ -331,8 +362,8 @@ def generate_typical_samples_figure(granularity):
 )
 def generate_stats_figure(granularity):
     task_titles = samples_by_granularity[granularity]
-    y_short = list(chain(*[(t,) * l_short for t in task_titles]))
-    y_long = list(chain(*[(t,) * l_long for t in task_titles]))
+    y_short = list(chain(*[(title_translation[t],) * l_short for t in task_titles]))
+    y_long = list(chain(*[(title_translation[t],) * l_long for t in task_titles]))
     x_short = [getattr(task, title) / 1000. for title in task_titles for task in short_run_tasks]
     x_long = [getattr(task, title) / 1000. for title in task_titles for task in long_run_tasks]
     trace_short = go.Box(
@@ -362,7 +393,7 @@ def generate_stats_figure(granularity):
         boxmode='group',
         title='fig.4 - Statistics from DK Trial',
         xaxis=dict(title='time in seconds', domain=[0, 140]),
-        yaxis=dict(title='task name'),
+        yaxis=dict(title='sub-task name'),
         margin={'l': 180, 'r': 60, 't': 30, 'b': 30}
     )
     return go.Figure(data=data, layout=layout)
@@ -391,7 +422,7 @@ def generate_saved_distances(shift_hours):
     line_current_busy_limit = go.Scatter(
         x=[left_bound, right_bound],
         y=[res[0], res[0]],
-        name="Limit of saved distance for current prototype in busy period",
+        name="Limit of travelled distance for current prototype in busy period",
         mode="lines",
         line=dict(color=colors[0], dash="dash")
     )
@@ -415,7 +446,7 @@ def generate_saved_distances(shift_hours):
     line_current_quiet_limit = go.Scatter(
         x=[left_bound, right_bound],
         y=[res[0], res[0]],
-        name="Limit of saved distance for current prototype in quiet period",
+        name="Limit of travelled distance for current prototype in quiet period",
         mode="lines",
         line=dict(color=colors[1], dash="dash")
     )
@@ -439,7 +470,7 @@ def generate_saved_distances(shift_hours):
     line_next_gen_busy_limit = go.Scatter(
         x=[left_bound, right_bound],
         y=[res[0], res[0]],
-        name="Limit of saved distance for next-gen prototype in busy period",
+        name="Limit of travelled distance for next-gen prototype in busy period",
         mode="lines",
         line=dict(color=colors[2], dash="dash")
     )
@@ -463,7 +494,7 @@ def generate_saved_distances(shift_hours):
     line_next_gen_quiet_limit = go.Scatter(
         x=[left_bound, right_bound],
         y=[res[0], res[0]],
-        name="Limit of saved distance for next-gen prototype in quiet period",
+        name="Limit of travelled distance for next-gen prototype in quiet period",
         mode="lines",
         line=dict(color=colors[3], dash="dash")
     )
@@ -479,9 +510,9 @@ def generate_saved_distances(shift_hours):
             trace_current_quiet, line_current_quiet_limit, marker_current_quiet_typical,
             trace_current_busy, line_current_busy_limit, marker_current_busy_typical]
     layout = go.Layout(
-        title='fig.1 - Prediction on how many meters can be saved for one robot in one shift',
+        title='fig.1 - Prediction on total travelled distance for one robot in one shift',
         xaxis=dict(title='distance between picking and packing stations'),
-        yaxis=dict(title='saved meters'),
+        yaxis=dict(title='total travelled meters'),
         margin={'l': 180, 'r': 60, 't': 30, 'b': 30}
     )
     return go.Figure(data=data, layout=layout)
@@ -554,9 +585,9 @@ def generate_saved_distance_by_docking_time(shift_hours, station_distance):
     )
     data = [trace_next_gen_quiet, trace_next_gen_busy, trace_current_quiet, trace_current_busy]
     layout = go.Layout(
-        title='fig.2 - Impact of the docking time on the saved distance for one robot in one shift',
+        title='fig.2 - Impact of the docking time on the total travelled distance for one robot in one shift',
         xaxis=dict(title='saved time on docking by percentage', tickformat=",.0%"),
-        yaxis=dict(title='saved meters'),
+        yaxis=dict(title='total travelled meters'),
         margin={'l': 180, 'r': 60, 't': 30, 'b': 30}
     )
     return go.Figure(data=data, layout=layout)
