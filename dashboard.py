@@ -141,6 +141,7 @@ def calculate_limit_and_typical_values(model, model_robot, predictive_robot, hou
 
 # App setup section
 app = dash.Dash()
+server = app.server
 
 
 app.layout = html.Div([
