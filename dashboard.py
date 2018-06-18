@@ -173,7 +173,12 @@ server = app.server
 
 
 app.layout = html.Div([
-    html.Br(),
+    html.H1("DK Trial Analysis In Graphs", style=dict(textAlign="center")),
+    html.Hr(),
+    html.H4(
+        "The hours and distance inputs below will affect the prediction and fig 1. and fig 2.",
+        style=dict(textAlign="center")
+    ),
     html.Div(
         children=[
             html.Label(
@@ -202,6 +207,11 @@ app.layout = html.Div([
             ),
         ],
         className="row"
+    ),
+    html.Br(),
+    html.H4(
+        "The traffic and robot model radio buttons will affect fig 1. and fig 2.",
+        style=dict(textAlign="center")
     ),
     html.Div(
         children=[
@@ -267,6 +277,10 @@ app.layout = html.Div([
         tabs=[{"label": i, "value": i} for i in samples_by_granularity.keys()],
         value=samples_by_granularity.keys()[0]
     ),
+    html.H4(
+        "The above tab will affect fig.3 and fig.4",
+        style=dict(textAlign="center")
+    ),
     html.Br(),
     dcc.Graph(
         id='typical-samples',
@@ -302,7 +316,7 @@ def generate_typical_samples_figure(granularity):
         traces.append(trace)
     layout = go.Layout(
         barmode='stack',
-        title='Typical samples from DK trial',
+        title='fig.3 - Typical samples from DK trial',
         xaxis=dict(title='time in seconds', domain=[0, 140]),
         yaxis=dict(title=y_title),
         margin={'l': 180, 'r': 60, 't': 30, 'b': 30}
@@ -345,7 +359,7 @@ def generate_stats_figure(granularity):
     data = [trace_short, trace_long]
     layout = go.Layout(
         boxmode='group',
-        title='Statistics from DK Trial',
+        title='fig.4 - Statistics from DK Trial',
         xaxis=dict(title='time in seconds', domain=[0, 140]),
         yaxis=dict(title='task name'),
         margin={'l': 180, 'r': 60, 't': 30, 'b': 30}
@@ -464,7 +478,7 @@ def generate_saved_distances(shift_hours):
             trace_current_quiet, line_current_quiet_limit, marker_current_quiet_typical,
             trace_current_busy, line_current_busy_limit, marker_current_busy_typical]
     layout = go.Layout(
-        title='Prediction on how many meters can be saved for one robot in one shift',
+        title='fig.1 - Prediction on how many meters can be saved for one robot in one shift',
         xaxis=dict(title='distance between picking and packing stations'),
         yaxis=dict(title='saved meters'),
         margin={'l': 180, 'r': 60, 't': 30, 'b': 30}
@@ -485,7 +499,7 @@ def generate_saved_distance(traffic_choice, robot_choice, shift_hours, station_d
     _model = model_choices[traffic_choice]
     _predictive_robot = robot_choices[robot_choice]
     saving = calculate_saved_distance(_distance, _model, current_robot, _predictive_robot, _hours)
-    return "One robot could save %d meters walking distance per shift!" % int(saving)
+    return "One robot could predictively save %d meters walking distance per shift!" % int(saving)
 
 
 @app.callback(
@@ -539,7 +553,7 @@ def generate_saved_distance_by_docking_time(shift_hours, station_distance):
     )
     data = [trace_next_gen_quiet, trace_next_gen_busy, trace_current_quiet, trace_current_busy]
     layout = go.Layout(
-        title='Impact of the docking time on the saved distance for one robot in one shift',
+        title='fig.2 - Impact of the docking time on the saved distance for one robot in one shift',
         xaxis=dict(title='saved time on docking by percentage', tickformat=",.0%"),
         yaxis=dict(title='saved meters'),
         margin={'l': 180, 'r': 60, 't': 30, 'b': 30}
