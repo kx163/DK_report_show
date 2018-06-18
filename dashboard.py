@@ -170,10 +170,11 @@ def calculate_saved_distance_by_docking_time(distance, model, model_robot, predi
 # App setup section
 app = dash.Dash()
 server = app.server
+app.title = "DK Trial Analysis In Graphs"
 
 
 app.layout = html.Div([
-    html.H1("DK Trial Analysis In Graphs", style=dict(textAlign="center")),
+    html.H1(app.title, style=dict(textAlign="center")),
     html.Hr(),
     html.H4(
         "The hours and distance inputs below will affect the prediction and fig 1. and fig 2.",
