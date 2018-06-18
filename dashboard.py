@@ -210,7 +210,7 @@ app.layout = html.Div([
     ),
     html.Br(),
     html.H4(
-        "The traffic and robot model radio buttons will affect fig 1. and fig 2.",
+        "The traffic and robot model radio buttons will only affect the prediction",
         style=dict(textAlign="center")
     ),
     html.Div(
