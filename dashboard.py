@@ -80,7 +80,7 @@ short_run_model, long_run_model = load_models(model_csv_path)
 model_choices = OrderedDict([("busy", short_run_model), ("quiet", long_run_model)])
 
 current_robot = dict(v_navigation=0.6, v_docking=0.25, v_manual=0.45, actuator=3.)
-next_robot = dict(v_navigation=1.5, v_docking=0.3, v_manual=0.5, actuator=1.)
+next_robot = dict(v_navigation=1.5, v_docking=0.25, v_manual=0.45, actuator=1.)
 robot_choices = OrderedDict([("current", current_robot), ("next-gen", next_robot)])
 
 
@@ -139,6 +139,34 @@ def calculate_limit_and_typical_values(model, model_robot, predictive_robot, hou
 # Data Section 3 End
 
 
+# Data Section 4: Prepare the data of the fourth illustration: the impact of docking time
+def calculate_saved_distance_by_docking_time(distance, model, model_robot, predictive_robot, saved_ratio, hours=8.):
+    time_ratio = 1 - saved_ratio
+    t_go_to_start_bay = model.t_go_to_start_bay.mean / 1000.
+    t_couple_trolley = model.t_couple_trolley.mean / 1000.
+    t_undock_trolley = model.t_undock_trolley.mean / 1000.
+    t_exit_start_bay = model.t_exit_start_bay.mean / 1000.
+    t_visual_align = model.t_visual_align.mean / 1000.
+    t_drop_trolley = model.t_drop_trolley.mean / 1000.
+    t_undock_robot = model.t_undock_robot.mean / 1000.
+    t_sum_navigation_failure = distance * model.navigation_failure_per_meter.k * (model.t_navigation_failures.mean
+                                                                                  / 1000.)
+    speed_ratio = model.navigation_speed.mean / model_robot["v_navigation"]
+
+    total_go_to_start_bay = t_go_to_start_bay
+    total_couple_trolley_and_exit_bay = ((t_couple_trolley + t_undock_trolley + t_exit_start_bay
+                                          - model_robot["actuator"]) * model_robot["v_docking"]
+                                         / predictive_robot["v_docking"] + predictive_robot["actuator"]) * time_ratio
+    total_go_to_end_bay = distance / (speed_ratio * predictive_robot["v_navigation"]) + t_sum_navigation_failure
+    total_drop_trolley_in_bay = ((t_visual_align + t_drop_trolley + t_undock_robot - model_robot["actuator"])
+                                 * model_robot["v_docking"] / predictive_robot["v_docking"]
+                                 + predictive_robot["actuator"]) * time_ratio
+    total_predictive_spent = (total_go_to_start_bay + total_couple_trolley_and_exit_bay
+                              + total_go_to_end_bay + total_drop_trolley_in_bay)
+    return distance * hours * 3600. / total_predictive_spent
+# Data Section 4 End
+
+
 # App setup section
 app = dash.Dash()
 server = app.server
@@ -168,7 +196,7 @@ app.layout = html.Div([
             ),
             dcc.Input(
                 id="station-distance",
-                value=200,
+                value=100.0,
                 type="number",
                 className="three columns"
             ),
@@ -227,6 +255,10 @@ app.layout = html.Div([
     html.Br(),
     dcc.Graph(
         id="saved-distances"
+    ),
+    html.Br(),
+    dcc.Graph(
+        id="saved-distances-by-docking-time"
     ),
     html.Br(),
     html.Hr(),
@@ -454,6 +486,65 @@ def generate_saved_distance(traffic_choice, robot_choice, shift_hours, station_d
     _predictive_robot = robot_choices[robot_choice]
     saving = calculate_saved_distance(_distance, _model, current_robot, _predictive_robot, _hours)
     return "One robot could save %d meters walking distance per shift!" % int(saving)
+
+
+@app.callback(
+    dash.dependencies.Output('saved-distances-by-docking-time', 'figure'),
+    [dash.dependencies.Input('shift-hours', 'value'),
+     dash.dependencies.Input('station-distance', 'value')]
+)
+def generate_saved_distance_by_docking_time(shift_hours, station_distance):
+    _distance = float(station_distance)
+    _hours = float(shift_hours)
+    left_bound = 0
+    right_bound = 50
+    saved_percentage_range = range(left_bound, right_bound + 1, 1)
+    saved_ratio_range = [x / 100. for x in saved_percentage_range]
+    colors = plotly.colors.DEFAULT_PLOTLY_COLORS
+    # plot for current prototype in busy period
+    trace_current_busy = go.Scatter(
+        x=saved_ratio_range,
+        y=map(lambda t: calculate_saved_distance_by_docking_time(_distance, short_run_model, current_robot,
+                                                                 current_robot, t, _hours), saved_ratio_range),
+        name="Current Prototype in busy period",
+        mode="lines",
+        line=dict(color=colors[0])
+    )
+    # plot for current prototype in quiet period
+    trace_current_quiet = go.Scatter(
+        x=saved_ratio_range,
+        y=map(lambda t: calculate_saved_distance_by_docking_time(_distance, long_run_model, current_robot,
+                                                                 current_robot, t, _hours), saved_ratio_range),
+        name="Current Prototype in quiet period",
+        mode="lines",
+        line=dict(color=colors[1])
+    )
+    # plot for next-gen prototype in busy period
+    trace_next_gen_busy = go.Scatter(
+        x=saved_ratio_range,
+        y=map(lambda t: calculate_saved_distance_by_docking_time(_distance, short_run_model, current_robot,
+                                                                 next_robot, t, _hours), saved_ratio_range),
+        name="Next-gen Prototype in busy period",
+        mode="lines",
+        line=dict(color=colors[2])
+    )
+    # plot for next-gen prototype in quiet period
+    trace_next_gen_quiet = go.Scatter(
+        x=saved_ratio_range,
+        y=map(lambda t: calculate_saved_distance_by_docking_time(_distance, long_run_model, current_robot,
+                                                                 next_robot, t, _hours), saved_ratio_range),
+        name="Next-gen Prototype in quiet period",
+        mode="lines",
+        line=dict(color=colors[3])
+    )
+    data = [trace_next_gen_quiet, trace_next_gen_busy, trace_current_quiet, trace_current_busy]
+    layout = go.Layout(
+        title='Impact of the docking time on the saved distance for one robot in one shift',
+        xaxis=dict(title='saved time on docking by percentage', tickformat=",.0%"),
+        yaxis=dict(title='saved meters'),
+        margin={'l': 180, 'r': 60, 't': 30, 'b': 30}
+    )
+    return go.Figure(data=data, layout=layout)
 # App callback section ends
 
 
