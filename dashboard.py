@@ -1,15 +1,17 @@
+from collections import OrderedDict
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
-from collections import OrderedDict
+from boards.statistics_layout import statistics_layout, statistics_div_id
+from boards.prediction_layout import prediction_layout, prediction_div_id
+from boards.intro_layout import intro_layout, intro_div_id
 from setup import app, board_tab_id
-from statistics_layout import statistics_layout, statistics_div_id
-from prediction_layout import prediction_layout, prediction_div_id
-
+from boards import prediction_callback, statistics_callback
 
 boards = OrderedDict([
+    (intro_div_id, intro_layout),
     (statistics_div_id, statistics_layout),
-    (prediction_div_id, prediction_layout)
+    (prediction_div_id, prediction_layout),
 ])
 
 layout_list = [
@@ -36,11 +38,6 @@ def switch_board(board):
 app.layout = html.Div(layout_list)
 app.css.append_css({'external_url': 'https://codepen.io/chriddyp/pen/bWLwgP.css'})
 server = app.server
-
-
-import statistics_callback
-import prediction_callback
-
 
 if __name__ == '__main__':
     app.run_server(debug=True)
